@@ -53,9 +53,33 @@ _start:
 	add	a6, a0, zero
 	MOV_3R	a0, s0, a1, s1, a2, s2
 	li	a7, -1
-	beq	a6, a7, _try_lottery
+	beq	a6, a7, _pre_lottery
 	/* Jump to relocation wait loop if we are not boot hart */
 	bne	a0, a6, _wait_relocate_copy_done
+_pre_lottery:
+
+#ifdef FW_RW_ADDR
+	/*
+	 * XIP: Copy .data from flash LMA to RAM VMA.
+	 * Must happen before _try_lottery which writes to _relocate_lottery
+	 * (a .data variable now in RAM).  On this platform only one hart
+	 * runs at cold boot so there is no race.  If multiple harts reach
+	 * here, the copy is idempotent (all write the same values).
+	 */
+	lla	t0, _data_lma
+	lla	t1, _data_start
+	lla	t2, _data_end
+	bgeu	t1, t2, _xip_copy_done
+_xip_copy_loop:
+	lw	t3, 0(t0)
+	sw	t3, 0(t1)
+	addi	t0, t0, 4
+	addi	t1, t1, 4
+	bltu	t1, t2, _xip_copy_loop
+_xip_copy_done:
+	fence	rw, rw
+#endif
+
 _try_lottery:
 	/* Jump to relocation wait loop if we don't get relocation lottery */
 	lla	a6, _relocate_lottery
@@ -274,7 +298,16 @@ _bss_zero:
 	mul	a5, s7, s8
 	add	tp, tp, a5
 	/* Setup heap base address */
+#ifdef FW_RW_ADDR
+	/*
+	 * XIP: firmware spans flash (code) + RAM (data/stacks/heap).
+	 * For PMP, set fw_start to one page before FW_RW_ADDR so the
+	 * RX region is an empty guard page and RW covers all RAM data.
+	 */
+	li	s10, FW_RW_ADDR - 0x1000
+#else
 	lla	s10, _fw_start
+#endif
 	sub	s10, tp, s10
 	add	tp, tp, s9
 	/* Keep a copy of tp */
@@ -303,14 +336,22 @@ _scratch_init:
 
 	/* Initialize scratch space */
 	/* Store fw_start and fw_size in scratch space */
+#ifdef FW_RW_ADDR
+	li	a4, FW_RW_ADDR - 0x1000
+#else
 	lla	a4, _fw_start
+#endif
 	sub	a5, t3, a4
 	REG_S	a4, SBI_SCRATCH_FW_START_OFFSET(tp)
 	REG_S	a5, SBI_SCRATCH_FW_SIZE_OFFSET(tp)
 
 	/* Store R/W section's offset in scratch space */
+#ifdef FW_RW_ADDR
+	li	a5, 0x1000
+#else
 	lla	a4, __fw_rw_offset
 	REG_L	a5, 0(a4)
+#endif
 	REG_S	a5, SBI_SCRATCH_FW_RW_OFFSET(tp)
 
 	/* Store fw_heap_offset and fw_heap_size in scratch space */

@@ -68,7 +68,19 @@
 
 	/* Beginning of the read-write data sections */
 
+#ifdef FW_RW_ADDR
+	/*
+	 * XIP mode: .data/.bss VMA in RAM, LMA stays in flash.
+	 * Code executes from flash (XIP), only writable data goes to RAM.
+	 */
+	PROVIDE(_data_lma = .);
+	. = FW_RW_ADDR;
+#endif
+
 	.data :
+#ifdef FW_RW_ADDR
+	AT(_data_lma)
+#endif
 	{
 		PROVIDE(_data_start = .);
 
@@ -78,6 +90,8 @@
 		*(.data.*)
 		*(.readmostly.data)
 		*(*.data)
+		*(.got)
+		*(.got.*)
 		. = ALIGN(8);
 
 		PROVIDE(_data_end = .);

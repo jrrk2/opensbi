@@ -32,7 +32,7 @@ endif
 
 # Blobs to build
 # Sonata XIP: firmware text in flash, kernel XIP from flash base
-FW_TEXT_START=0x02540000
+FW_TEXT_START=0x02600000
 FW_DYNAMIC=y
 FW_JUMP=y
 FW_JUMP_ADDR=0x02000000
