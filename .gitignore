@@ -11,3 +11,17 @@ install/
 tags
 cscope*
 *.swp
+
+.applied_patches_list
+.files-list-host.txt
+.files-list-images.txt
+.files-list-staging.txt
+.files-list.txt
+.stamp_built
+.stamp_configured
+.stamp_downloaded
+.stamp_extracted
+.stamp_images_installed
+.stamp_installed
+.stamp_patched
+.stamp_staging_installed
